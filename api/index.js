@@ -8,7 +8,7 @@ const _ = require('lodash');
 const appRoutes = Router();
 const baseName = path.basename(__filename);
 const { apiVersion } = require('../config').server;
-const authMiddleware = require('../middlewares/auth.middleware');
+// const authMiddleware = require('../middlewares/auth.middleware');
 
 function applyApiMiddleware(app) {
   var apiRoutes = [];
@@ -22,11 +22,11 @@ function applyApiMiddleware(app) {
       });
       featureRoutes.map(item => {
         // if route require authentication append preauth validation
-        if (item.auth === undefined || item.auth === true) {
-          _.extend(item, {
-            pre: authMiddleware,
-          });
-        }
+        // if (item.auth === undefined || item.auth === true) {
+        //   _.extend(item, {
+        //     pre: authMiddleware,
+        //   });
+        // }
         return item;
       });
       apiRoutes = apiRoutes.concat(featureRoutes);
