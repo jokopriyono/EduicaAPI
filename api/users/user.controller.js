@@ -3,6 +3,7 @@
 const _ = require('lodash');
 const User = require('../../models/user');
 const Operator = require('sequelize').Op;
+const bcrypt = require('bcrypt');
 
 /**
  * Get all registered users
@@ -34,11 +35,12 @@ exports.createUser = async ctx => {
     if (find) {
         ctx.throw(403, 'user with that username/email already exist')
     }
+    const p = bcrypt.hashSync(password, 10);
     const res = await User.create({
         full_name: fullname,
         username,
         email,
-        password
+        password: p
     })
     delete res.dataValues.password;
     delete res.dataValues.deleted_at;

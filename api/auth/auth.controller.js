@@ -5,7 +5,7 @@ const _ = require('lodash');
 const Application = require('../../models/application');
 const Login = require('../../models/login');
 const User = require('../../models/user');
-const UserPermission = require('../../models/user-permission');
+// const UserPermission = require('../../models/user-permission');
 const UserPhoto = require('../../models/user-photo');
 const BlacklistedToken = require('../../models/blacklisted-token');
 const authHelper = require('../../helpers/auth');
@@ -19,29 +19,29 @@ const v = process.env.API_VERSION;
 async function findUser(query) {
   const user = await User.findOne({
     where: query,
-    include: [
-      {
-        model: UserPermission,
-        required: false,
-        attributes: ['is_readable', 'is_writeable'],
-        where: { deleted_at: null },
-      },
-    ],
+    // include: [
+    //   {
+    //     model: UserPermission,
+    //     required: false,
+    //     attributes: ['is_readable', 'is_writeable'],
+    //     where: { deleted_at: null },
+    //   },
+    // ],
   });
-  const findLastPhoto = await UserPhoto.findOne({
-    where: { deleted_at: null, user_id: user.dataValues.id },
-  });
-  let photoUrl;
-  if (findLastPhoto) {
-    photoUrl = `${baseUrl}/api/${v}/files/user-photo/${
-      findLastPhoto.dataValues.file_name
-    }`;
-  } else {
-    photoUrl = user.dataValues.gender
-      ? `${baseUrl}/api/${v}/files/user-photo/default-male.jpg`
-      : `${baseUrl}/api/${v}/files/user-photo/default-female.jpg`;
-  }
-  user.dataValues.photo = photoUrl;
+  // const findLastPhoto = await UserPhoto.findOne({
+  //   where: { deleted_at: null, user_id: user.dataValues.id },
+  // });
+  // let photoUrl;
+  // if (findLastPhoto) {
+  //   photoUrl = `${baseUrl}/api/${v}/files/user-photo/${
+  //     findLastPhoto.dataValues.file_name
+  //   }`;
+  // } else {
+  //   photoUrl = user.dataValues.gender
+  //     ? `${baseUrl}/api/${v}/files/user-photo/default-male.jpg`
+  //     : `${baseUrl}/api/${v}/files/user-photo/default-female.jpg`;
+  // }
+  // user.dataValues.photo = photoUrl;
   return user;
 }
 
@@ -55,29 +55,6 @@ async function signInUser(user, app, device, os) {
     expires_in: jwtConfig.expires,
   };
 
-  await Login.update(
-    {
-      is_revoked: '1',
-    },
-    {
-      where: {
-        user_id: user.dataValues.id,
-        is_revoked: '0',
-      },
-    },
-  );
-
-  let until = Date.now();
-  until += user.dataValues.token.expires_in;
-  await Login.create({
-    app_id: app.dataValues.id,
-    user_id: user.dataValues.id,
-    device_name: device,
-    os_name: os,
-    token: user.dataValues.token.access_token,
-    refresh_token: user.dataValues.token.refresh_token,
-    valid_until: new Date(until),
-  });
   delete user.dataValues.password;
   delete user.dataValues.is_special;
   delete user.dataValues.deleted_at;
@@ -85,8 +62,21 @@ async function signInUser(user, app, device, os) {
   delete user.dataValues.is_suspended;
   delete user.dataValues.rating;
   delete user.dataValues.token.expires_in;
-  user.dataValues.token.valid_until = new Date(until);
   return user;
+}
+
+exports.login = async ctx => {
+  const { phone, email, password } = ctx.request.body;
+  const query = { deleted_at: null };
+  _.extendWith(query, _.omitBy({ phone, email }, _.isUndefined));
+
+  const user = await findUser(query);
+  if (user && user.isValidPassword(password)) {
+    ctx.body = await signInUser(user, null, null, null);
+    return;
+  }
+
+  ctx.throw(401, 'Invalid credential');
 }
 
 /**
